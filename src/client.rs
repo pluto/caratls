@@ -1,5 +1,5 @@
-use crate::{attestation::Token, MAGIC_BYTES};
-use rustls::crypto::CryptoProvider;
+use crate::{attestation::Token, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES};
+use rustls::{crypto::CryptoProvider, OtherError};
 use rustls_pki_types::CertificateDer;
 use std::sync::Arc;
 use thiserror::Error;
@@ -8,6 +8,8 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 #[derive(Error, Debug)]
 pub enum TeeTlsConnectorError {
     // TODO
+    #[error(transparent)]
+    RustlsError(#[from] rustls::Error),
 }
 
 pub struct TeeTlsConnector {
@@ -49,8 +51,11 @@ impl TeeTlsConnector {
             .to_owned();
         let mut inner_tls_stream = connector.connect(domain, stream).await.unwrap();
 
+        // TODO EKM
+        let _ekm: [u8; 32] = export_key_material(&inner_tls_stream, EKM_LABEL, Some(EKM_CONTEXT))?;
+
         // Send TEETLS magic bytes to server
-        inner_tls_stream.write_all(&MAGIC_BYTES).await.unwrap();
+        inner_tls_stream.write_all(MAGIC_BYTES).await.unwrap();
 
         // Expect the server to reply with a TEE attestation token
 
@@ -153,4 +158,24 @@ impl rustls::client::danger::ServerCertVerifier for SkipServerVerification {
     // fn requires_raw_public_keys(&self) -> bool {
     //     true
     // }
+}
+
+fn export_key_material<const L: usize, IO>(
+    tls_stream: &tokio_rustls::client::TlsStream<IO>,
+    label: &[u8],
+    context: Option<&[u8]>,
+) -> Result<[u8; L], rustls::Error>
+where
+    IO: AsyncRead + AsyncWrite + Unpin,
+{
+    let conn = tls_stream.get_ref().1;
+
+    if conn.is_handshaking() {
+        // TODO maybe return OtherError with custom message?
+        return Err(rustls::Error::HandshakeNotComplete);
+    }
+
+    let mut buf = [0u8; L];
+    let buf = conn.export_keying_material(&mut buf, label, context)?;
+    Ok(*buf)
 }

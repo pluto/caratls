@@ -1,5 +1,5 @@
 use crate::attestation::Token;
-use crate::MAGIC_BYTES;
+use crate::{EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES};
 use rcgen::generate_simple_self_signed;
 use rustls_pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use std::sync::Arc;
@@ -15,6 +15,9 @@ pub struct TeeTlsAcceptor {
 #[derive(Error, Debug)]
 pub enum TeeTlsAcceptorError {
     // TODO
+
+    #[error(transparent)]
+    RustlsError(#[from] rustls::Error),
 }
 
 impl TeeTlsAcceptor {
@@ -57,6 +60,9 @@ impl TeeTlsAcceptor {
         // TODO test if this is actually a TLS connection? if not, just passthrough.
         let inner_tls_stream = acceptor.accept(stream).await.unwrap();
 
+        // TODO EKM
+        let _ekm: [u8; 32] = export_key_material(&inner_tls_stream, EKM_LABEL, Some(EKM_CONTEXT))?;
+
         let (read, mut write) = split(inner_tls_stream);
         let mut bufread = BufReader::new(read);
 
@@ -64,7 +70,7 @@ impl TeeTlsAcceptor {
         // Here is a crate that maybe helps:
         // https://docs.rs/peekread/latest/peekread/struct.BufPeekReader.html#method.peek_read_exact
         let peek_buf = bufread.fill_buf().await.unwrap();
-        if peek_buf.len() >= MAGIC_BYTES.len() && peek_buf[..MAGIC_BYTES.len()].eq(&MAGIC_BYTES) {
+        if peek_buf.len() >= MAGIC_BYTES.len() && peek_buf[..MAGIC_BYTES.len()].eq(MAGIC_BYTES) {
             bufread.consume(MAGIC_BYTES.len());
 
             // TODO get TEE attestation token (implement via trait)
@@ -99,4 +105,24 @@ fn generate_cert(
         cert.der().clone(),
         PrivatePkcs8KeyDer::from(key_pair.serialize_der()).into(),
     ))
+}
+
+fn export_key_material<const L: usize, IO>(
+    tls_stream: &tokio_rustls::server::TlsStream<IO>,
+    label: &[u8],
+    context: Option<&[u8]>,
+) -> Result<[u8; L], rustls::Error>
+where
+    IO: AsyncRead + AsyncWrite + Unpin,
+{
+    let conn = tls_stream.get_ref().1;
+
+    if conn.is_handshaking() {
+        // TODO maybe return OtherError with custom message?
+        return Err(rustls::Error::HandshakeNotComplete);
+    }
+
+    let mut buf = [0u8; L];
+    let buf = conn.export_keying_material(&mut buf, label, context)?;
+    Ok(*buf)
 }

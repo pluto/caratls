@@ -2,7 +2,9 @@ mod attestation;
 pub mod client;
 pub mod server;
 
-const MAGIC_BYTES: [u8; 6] = *b"TEETLS";
+const MAGIC_BYTES: &[u8; 6] = b"TEETLS";
+const EKM_LABEL: &[u8; 21] = b"EXPORTER-pluto-notary";
+const EKM_CONTEXT: &[u8; 3] = b"tee";
 
 #[cfg(test)]
 mod tests {
