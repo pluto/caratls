@@ -73,7 +73,12 @@ impl VerifyToken for GoogleConfidentialSpaceTokenVerifier {
         let decoded_token =
             jsonwebtoken::decode::<JwtToken>(token, &decoding_key, &validation).unwrap();
 
-        assert_eq!(decoded_token.claims.eat_nonce[0], hex::encode(&ekm));
+        match decoded_token.claims.eat_nonce {
+            ekm_gcs_types::EatNonce::Single(eat_nonce) => {
+                assert_eq!(eat_nonce, hex::encode(&ekm));
+            }
+            ekm_gcs_types::EatNonce::Multiple(_eat_nonces) => todo!(),
+        }
 
         // PKI flow... (broken)
         // key:

@@ -9,7 +9,7 @@ pub struct JwtToken {
     pub iss: String,
     pub nbf: u64,
     pub sub: String,
-    pub eat_nonce: Vec<String>,
+    pub eat_nonce: EatNonce,
     pub eat_profile: String,
     pub secboot: bool,
     pub oemid: u32,
@@ -20,6 +20,13 @@ pub struct JwtToken {
     pub dbgstat: String,
     pub submods: SubModules,
     pub google_service_accounts: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum EatNonce {
+    Single(String),
+    Multiple(Vec<String>)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
