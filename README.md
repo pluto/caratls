@@ -2,6 +2,14 @@
 
 **tldr**: caratls (Certificate Authority trusted Remote Attestation TLS) lets a browser connect directly to a TEE using a Root CA-signed certificate (e.g., from Let's Encrypt), then encapsulates a second TLS session inside the outer session. This inner TLS session is bootstrapped with TEE-generated self-signed certificates and supports channel binding, ensuring strong trust with the TEE even if the outer certificate is compromised.
 
+```
+Outer TLS session trusted by Root CA (ie Let's Encrypt)
+..encapsulates TLS session with TEE bootstrapped self-signed certificate
+...verifies TEE attestation token inline
+...use TlsStream<TlsStream<TcpStream>> for regular client/server comms
+```
+
+
 ## Motivation
 
 - **Direct Browser Compatibility**: Browsers only trust CA-signed certificates by default. Hence, we first establish a standard HTTPS/WSS connection using a Let's Encrypt certificate.
