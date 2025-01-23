@@ -1,0 +1,28 @@
+[package]
+name = "caratls_ekm_google_confidential_space_client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ekm_gcs_types = { package = "caratls_ekm_google_confidential_space_types", path = "../types" }
+ekm_client = { package = "caratls_ekm_client", path = "../../../client" }
+jsonwebtoken = { version = "9.3" }
+reqwest = { version = "0.12" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+hex = { version = "0.4" }
+
+
+# tokio = { version = "1.42", default-features = false, features = ["io-util"] }
+# rcgen = "0.13"
+# serde = { version = "1.0", features = ["derive"] }
+# serde_cbor = "0.11"
+# thiserror = "2"
+
+# hyper = { version = "1.5", optional = true, features = ["client", "http1"] }
+# http-body-util = { version = "0.1", optional = true }
+# hyper-util = { version = "0.1", optional = true, features = ["tokio"] }
+# serde_json = { version = "1.0", optional = true }
+# hex = { version = "0.4", optional = true }
+# jsonwebtoken = { version = "9.3", optional = true }
+# reqwest = { version = "0.12", optional = true }

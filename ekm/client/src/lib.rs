@@ -1,5 +1,5 @@
-use crate::{attestation::Token, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES};
-use rustls::{crypto::CryptoProvider, OtherError};
+use ekm_types::{DummyToken, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES};
+use rustls::crypto::CryptoProvider;
 use rustls_pki_types::CertificateDer;
 use std::sync::Arc;
 use thiserror::Error;
@@ -12,14 +12,16 @@ pub enum TeeTlsConnectorError {
     RustlsError(#[from] rustls::Error),
 }
 
-pub struct TeeTlsConnector {
+pub struct TeeTlsConnector<T: VerifyToken> {
     verify_hostname: String,
+    token_verifier: T,
 }
 
-impl TeeTlsConnector {
-    pub fn new(verify_hostname: &str) -> Self {
+impl<T: VerifyToken> TeeTlsConnector<T> {
+    pub fn new(token_verifier: T, verify_hostname: &str) -> Self {
         TeeTlsConnector {
             verify_hostname: verify_hostname.to_string(),
+            token_verifier: token_verifier,
         }
     }
 
@@ -51,8 +53,7 @@ impl TeeTlsConnector {
             .to_owned();
         let mut inner_tls_stream = connector.connect(domain, stream).await.unwrap();
 
-        // TODO EKM
-        let _ekm: [u8; 32] = export_key_material(&inner_tls_stream, EKM_LABEL, Some(EKM_CONTEXT))?;
+        let ekm: [u8; 32] = export_key_material(&inner_tls_stream, EKM_LABEL, Some(EKM_CONTEXT))?;
 
         // Send TEETLS magic bytes to server
         inner_tls_stream.write_all(MAGIC_BYTES).await.unwrap();
@@ -75,15 +76,29 @@ impl TeeTlsConnector {
         dbg!(size); // TODO remove
 
         // Read the actual TEE token payload
-        let mut buffer = vec![0u8; size.try_into().unwrap()];
-        inner_tls_stream.read_exact(&mut buffer).await.unwrap();
+        let mut token = vec![0u8; size.try_into().unwrap()];
+        inner_tls_stream.read_exact(&mut token).await.unwrap();
 
-        let token: Token = serde_cbor::from_slice(&buffer).unwrap();
-        dbg!(token); // TODO remove
-
-        // TODO verify token
+        // Verify token
+        self.token_verifier.verify_token(&token, &ekm).await.unwrap();
 
         Ok(inner_tls_stream)
+    }
+}
+
+pub trait VerifyToken {
+    fn verify_token(&self, token: &[u8], ekm: &[u8]) -> impl std::future::Future<Output = Result<(), TeeTlsConnectorError>>;
+}
+
+pub struct DummyTokenVerifier {
+    pub expect_token: String,
+}
+
+impl VerifyToken for DummyTokenVerifier {
+    async fn verify_token(&self, token: &[u8], _ekm: &[u8]) -> Result<(), TeeTlsConnectorError> {
+        let token: DummyToken = serde_cbor::from_slice(token).unwrap();
+        assert!(token.body == self.expect_token);
+        Ok(())
     }
 }
 
