@@ -1,0 +1,32 @@
+[package]
+name = "caratls_ekm_client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ekm_types = { package = "caratls_ekm_types", path = "../types" }
+tokio = { version = "1.42", default-features = false, features = ["io-util"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_cbor = "0.11"
+thiserror = "2"
+
+# Not WASM, not iOS
+[target.'cfg(not(any(target_arch = "wasm32", target_os = "ios", target_os = "ios-sim")))'.dependencies]
+rustls-pki-types = { version = "1.10" }
+rustls = { version = "0.23" }
+tokio-rustls = { version = "0.26" }
+
+# WASM or iOS
+[target.'cfg(any(target_arch = "wasm32", target_os = "ios", target_os = "ios-sim"))'.dependencies]
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+tokio-rustls = { version = "0.26", default-features = false, features = [
+	"ring",
+] }
+
+# WASM
+[target.'cfg(any(target_arch = "wasm32"))'.dependencies]
+rustls-pki-types = { version = "1.10", features = ["web"] }
+
+# iOS
+[target.'cfg(any(target_os = "ios", target_os = "ios-sim"))'.dependencies]
+rustls-pki-types = { version = "1.10" }

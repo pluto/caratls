@@ -1,0 +1,24 @@
+[package]
+name = "caratls_ekm_server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ekm_types = { package = "caratls_ekm_types", path = "../types" }
+tokio = { version = "1.42", default-features = false, features = ["io-util"] }
+rcgen = "0.13"
+thiserror = "2"
+rustls-pki-types = { version = "1.10" }
+rustls = { version = "0.23" }
+tokio-rustls = { version = "0.26" }
+serde_cbor = "0.11"
+
+[dev-dependencies]
+ekm_client = { package = "caratls_ekm_client", path = "../client" }
+tokio = { version = "1.42", features = [
+	"net",
+	"io-util",
+	"rt",
+	"macros",
+	"time",
+] }
