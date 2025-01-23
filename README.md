@@ -52,7 +52,7 @@ let tee_tls_connector = TeeTlsConnector::new(token_verifier, ...);
 let tee_tls_stream = tee_tls_connector.connect(tls_stream).await?;
 ```
 
-The `tls_stream` in both cases is already an outer TLS connection (e.g., from Let's Encrypt) which then encapsulates the secure TEE-backed inner TLS connection.
+The `tls_stream` in both cases is already an outer TLS connection (e.g., from Let's Encrypt) which then encapsulates the secure TEE-bootstrapped inner TLS connection.
 
 
 ## Development
@@ -60,4 +60,4 @@ The `tls_stream` in both cases is already an outer TLS connection (e.g., from Le
 caratls is organized into multiple crates:
 
 * `server & client`: Split for better dependency control (e.g., WASM/iOS target support on the client side).
-* `ekm` and `key`: Different crates implement either EKM-based or key-attestation-based channel binding.
+* `ekm` and `key`: Different crates implement either EKM-based or Key-Attestation based channel binding.
