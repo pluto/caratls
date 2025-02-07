@@ -11,6 +11,15 @@ thiserror = "2"
 rcgen = "0.13"
 rustls = { version = "0.23" }
 tokio-rustls = { version = "0.26" }
+# ekm_gcs_types = { package = "caratls_ekm_google_confidential_space_types", path = "../types" }
+# ekm_server = { package = "caratls_ekm_server", path = "../../../server" }
+hyper = { version = "1.5", features = ["client", "http1"] }
+http-body-util = { version = "0.1" }
+hyper-util = { version = "0.1", features = ["tokio"] }
+serde_json = { version = "1.0" }
+hex = { version = "0.4" }
+jsonwebtoken = { version = "9.3" }
+reqwest = { version = "0.12" }
 
 # Not WASM, not iOS
 [target.'cfg(not(any(target_arch = "wasm32", target_os = "ios", target_os = "ios-sim")))'.dependencies]

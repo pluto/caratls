@@ -1,6 +1,5 @@
-
-use caratls::server::{DummyTokenGenerator, TeeTlsAcceptor};
 use caratls::client::{DummyTokenVerifier, TeeTlsConnector};
+use caratls::server::{DummyTokenGenerator, TeeTlsAcceptor};
 use rustls_pki_types::{pem::PemObject, CertificateDer, PrivateKeyDer};
 use std::sync::Arc;
 use tokio::{
@@ -35,7 +34,8 @@ async fn test_server_client() {
         let dummy = DummyTokenGenerator {
             token: "Dummy".to_string(),
         };
-        let tee_tls_acceptor = TeeTlsAcceptor::new_with_ephemeral_cert(dummy, "example.com");
+        let tee_tls_acceptor =
+            TeeTlsAcceptor::new_with_ephemeral_cert(dummy, "example.com").unwrap();
         let mut tee_tls_stream = tee_tls_acceptor.accept(tls_stream).await.unwrap();
 
         // The `tee_tls_stream` connection can now be used like a regular TLS stream,

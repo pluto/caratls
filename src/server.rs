@@ -1,29 +1,47 @@
 use rcgen::generate_simple_self_signed;
 use rustls_pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use std::sync::Arc;
-use thiserror::Error;
 use tokio::io::BufReader;
 use tokio::io::{split, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt};
 
+use crate::errors::TeeTlsError;
 use crate::types::{DummyToken, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES};
 
+/// A struct representing a TLS acceptor with TEE attestation.
+///
+/// The `TeeTlsAcceptor` struct is responsible for accepting incoming TLS connections
+/// and performing TEE attestation. It uses a self-signed certificate and a token generator
+/// to create a secure TLS connection with TEE attestation.
+///
+/// # Type Parameters
+///
+/// * `T` - A type that implements the `GenerateToken` trait, used for generating TEE attestation tokens.
 pub struct TeeTlsAcceptor<T: GenerateToken> {
-    cert_chain: Vec<CertificateDer<'static>>, // rustls::ServerConfig::builder requires static
-    key_der: PrivateKeyDer<'static>,          // see above
+    /// The certificate chain used for the TLS connection.
+    /// This must be a static reference because `rustls::ServerConfig::builder` requires it.
+    cert_chain: Vec<CertificateDer<'static>>,
+    /// The private key used for the TLS connection.
+    /// This must be a static reference because `rustls::ServerConfig::builder` requires it.
+    key_der: PrivateKeyDer<'static>,
+    /// The token generator used to generate TEE attestation tokens.
     token_generator: T,
 }
 
-#[derive(Error, Debug)]
-pub enum TeeTlsAcceptorError {
-    // TODO
-    #[error(transparent)]
-    RustlsError(#[from] rustls::Error),
-
-    #[error(transparent)]
-    SerdeCborError(#[from] serde_cbor::Error),
-}
-
 impl<T: GenerateToken> TeeTlsAcceptor<T> {
+    /// Creates a new `TeeTlsAcceptor` instance.
+    ///
+    /// This function initializes a `TeeTlsAcceptor` with the provided token generator,
+    /// certificate chain, and private key.
+    ///
+    /// # Arguments
+    ///
+    /// * `token_generator` - An instance of a type that implements the `GenerateToken` trait. This is used to generate TEE attestation tokens.
+    /// * `cert_chain` - A vector of `CertificateDer` representing the certificate chain used for the TLS connection.
+    /// * `key_der` - A `PrivateKeyDer` representing the private key used for the TLS connection.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `TeeTlsAcceptor`.
     pub fn new(
         token_generator: T,
         cert_chain: Vec<CertificateDer<'static>>,
@@ -36,38 +54,68 @@ impl<T: GenerateToken> TeeTlsAcceptor<T> {
         }
     }
 
-    pub fn new_with_ephemeral_cert(token_generator: T, hostname: &str) -> Self {
-        let (cert, key) = generate_cert(hostname).unwrap();
-        TeeTlsAcceptor {
+    /// Creates a new `TeeTlsAcceptor` instance with an ephemeral certificate.
+    ///
+    /// This function generates a self-signed certificate for the provided hostname
+    /// and initializes a `TeeTlsAcceptor` with the generated certificate, private key,
+    /// and the provided token generator.
+    ///
+    /// # Arguments
+    ///
+    /// * `token_generator` - An instance of a type that implements the `GenerateToken` trait. This is used to generate TEE attestation tokens.
+    /// * `hostname` - A string slice that holds the hostname for which the self-signed certificate will be generated.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `TeeTlsAcceptor` with an ephemeral certificate.
+    pub fn new_with_ephemeral_cert(
+        token_generator: T,
+        hostname: &str,
+    ) -> Result<Self, TeeTlsError> {
+        let (cert, key) = generate_cert(hostname)?;
+        Ok(TeeTlsAcceptor {
             cert_chain: vec![cert],
             key_der: key,
             token_generator,
-        }
+        })
     }
 
-    // `accept` takes an IO stream and creates a TLS stream on top of it.
-    // It checks whether the client sent the TEETLS magic bytes. If the magic bytes
-    // are detected, the TEE attestation flow is initiated, and the server sends a
-    // TEE attestation token for the client to verify. The client should terminate
-    // the connection if the TEE attestation fails.
-    //
-    // If no TEETLS magic bytes were sent, `accept` simply passes the IO stream through.
+    /// Accepts an incoming IO stream and creates a TLS stream on top of it.
+    ///
+    /// This function checks whether the client sent the TEETLS magic bytes. If the magic bytes
+    /// are detected, the TEE attestation flow is initiated, and the server sends a
+    /// TEE attestation token for the client to verify. The client should terminate
+    /// the connection if the TEE attestation fails.
+    ///
+    /// If no TEETLS magic bytes were sent, `accept` simply passes the IO stream through.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream` - An IO stream that implements the `AsyncRead`, `AsyncWrite`, and `Unpin` traits.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing an IO stream that implements `AsyncRead`, `AsyncWrite`, and `Unpin` if the connection is successfully established and
+    /// the TEE attestation token is verified, or a `TeeTlsError` if an error occurs.
+    ///
+    /// # Errors
+    ///
+    /// This function will return a `TeeTlsError` if there is an error during the TLS handshake, IO operations, or TEE attestation token generation.
     pub async fn accept<IO>(
         &self,
         stream: IO,
-    ) -> Result<impl AsyncRead + AsyncWrite + Unpin, TeeTlsAcceptorError>
+    ) -> Result<impl AsyncRead + AsyncWrite + Unpin, TeeTlsError>
     where
         IO: AsyncRead + AsyncWrite + Unpin,
     {
         // listen for second TLS connection with self signed cert to come through
         let config = rustls::ServerConfig::builder()
             .with_no_client_auth()
-            .with_single_cert(self.cert_chain.clone().to_vec(), self.key_der.clone_key())
-            .unwrap();
+            .with_single_cert(self.cert_chain.clone().to_vec(), self.key_der.clone_key())?;
         let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
 
         // TODO test if this is actually a TLS connection? if not, just passthrough.
-        let inner_tls_stream = acceptor.accept(stream).await.unwrap();
+        let inner_tls_stream = acceptor.accept(stream).await?;
 
         let ekm: [u8; 32] = export_key_material(&inner_tls_stream, EKM_LABEL, Some(EKM_CONTEXT))?;
 
@@ -77,23 +125,23 @@ impl<T: GenerateToken> TeeTlsAcceptor<T> {
         // TODO fill_buf() has no garantuee it will read at least 6 bytes.
         // Here is a crate that maybe helps:
         // https://docs.rs/peekread/latest/peekread/struct.BufPeekReader.html#method.peek_read_exact
-        let peek_buf = bufread.fill_buf().await.unwrap();
+        let peek_buf = bufread.fill_buf().await?;
         if peek_buf.len() >= MAGIC_BYTES.len() && peek_buf[..MAGIC_BYTES.len()].eq(MAGIC_BYTES) {
             bufread.consume(MAGIC_BYTES.len());
 
             // generate token with EKM
-            let token = self.token_generator.generate_token(&ekm).await.unwrap();
+            let token = self.token_generator.generate_token(&ekm).await?;
 
             // write version
             let version: u16 = 1; // u16 = 2 bytes
-            write.write_all(&version.to_be_bytes()).await.unwrap();
+            write.write_all(&version.to_be_bytes()).await?;
 
             // write size
-            let size: u32 = token.len().try_into().unwrap(); // u32 = 4 bytes
-            write.write_all(&size.to_be_bytes()).await.unwrap();
+            let size: u32 = token.len().try_into()?; // u32 = 4 bytes
+            write.write_all(&size.to_be_bytes()).await?;
 
             // write payload
-            write.write_all(&token).await.unwrap();
+            write.write_all(&token).await?;
         }
 
         Ok(tokio::io::join(bufread, write))
@@ -102,9 +150,9 @@ impl<T: GenerateToken> TeeTlsAcceptor<T> {
 
 fn generate_cert(
     subject_alt_names: &str,
-) -> Result<(CertificateDer<'static>, PrivateKeyDer<'static>), String> {
+) -> Result<(CertificateDer<'static>, PrivateKeyDer<'static>), TeeTlsError> {
     let rcgen::CertifiedKey { cert, key_pair } =
-        generate_simple_self_signed(vec![subject_alt_names.to_string()]).unwrap();
+        generate_simple_self_signed(vec![subject_alt_names.to_string()])?;
 
     Ok((
         cert.der().clone(),
@@ -132,26 +180,48 @@ where
     Ok(*buf)
 }
 
+/// A trait for generating TEE attestation tokens.
+///
+/// This trait defines a method for generating TEE attestation tokens based on the provided
+/// Extracted Key Material (EKM). Implementors of this trait are responsible for creating
+/// the token and returning it as a byte vector.
+///
+/// # Type Parameters
+///
+/// * `T` - A type that implements the `GenerateToken` trait, used for generating the TEE attestation token.
 pub trait GenerateToken {
+    /// Generates a TEE attestation token.
+    ///
+    /// This method generates a TEE attestation token using the provided EKM. The token is returned
+    /// as a byte vector wrapped in a `Result`.
+    ///
+    /// # Arguments
+    ///
+    /// * `ekm` - A byte slice representing the Extracted Key Material (EKM) used for token generation.
+    ///
+    /// # Returns
+    ///
+    /// An asynchronous future that resolves to a `Result` containing the generated token as a byte vector,
+    /// or a `TeeTlsError` if an error occurs during token generation.
     fn generate_token(
         &self,
         ekm: &[u8],
-    ) -> impl std::future::Future<Output = Result<Vec<u8>, TeeTlsAcceptorError>> + Send;
+    ) -> impl std::future::Future<Output = Result<Vec<u8>, TeeTlsError>> + Send;
 }
 
+/// A dummy token generator used for testing purposes.
+///
+/// This struct is used to generate TEE attestation tokens by providing a predefined token value.
 pub struct DummyTokenGenerator {
+    /// The token value that the generator will use to create the TEE attestation token.
     pub token: String,
 }
 
 impl GenerateToken for DummyTokenGenerator {
-    async fn generate_token(&self, _ekm: &[u8]) -> Result<Vec<u8>, TeeTlsAcceptorError> {
+    async fn generate_token(&self, _ekm: &[u8]) -> Result<Vec<u8>, TeeTlsError> {
         let token = DummyToken {
             body: self.token.clone(),
         };
         Ok(serde_cbor::to_vec(&token)?)
     }
-}
-
-#[cfg(test)]
-mod tests {
 }

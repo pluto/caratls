@@ -1,44 +1,49 @@
-use ekm_client::VerifyToken;
-use ekm_gcs_types::JwtToken;
+use crate::client::VerifyToken;
+use crate::errors::TeeTlsError;
+use crate::types::{EatNonce, JwtToken};
 use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 
+/// A struct representing a token verifier for Google Confidential Space.
+///
+/// The `GoogleConfidentialSpaceTokenVerifier` struct is used to verify tokens
+/// for Google Confidential Space by providing the expected audience for the token.
 pub struct GoogleConfidentialSpaceTokenVerifier {
+    /// The expected audience for the token.
     expect_audience: String,
+    /// The JWK set for the token.
     jwks: JwkSet,
 }
 
 impl GoogleConfidentialSpaceTokenVerifier {
+    /// Creates a new instance of `GoogleConfidentialSpaceTokenVerifier`.
     pub async fn new(audience: &str) -> Self {
         let mut v = GoogleConfidentialSpaceTokenVerifier {
             expect_audience: audience.to_owned(),
             jwks: JwkSet { keys: vec![] },
         };
-        v.reload_jwks().await;
+        let _ = v.reload_jwks().await;
         v
     }
-
-    pub async fn reload_jwks(&mut self) {
+    /// Reloads the JWK set for the token.
+    pub async fn reload_jwks(&mut self) -> Result<(), TeeTlsError> {
         // OIDC flow ...
         // https://confidentialcomputing.googleapis.com/.well-known/openid-configuration
         // https://www.googleapis.com/service_accounts/v1/metadata/jwk/signer@confidentialspace-sign.iam.gserviceaccount.com
-        let jwks_response = reqwest::get("https://www.googleapis.com/service_accounts/v1/metadata/jwk/signer@confidentialspace-sign.iam.gserviceaccount.com").await.unwrap();
-        let body = jwks_response.bytes().await.unwrap();
-        let jwks: JwkSet = serde_json::from_slice(&body).unwrap();
+        let jwks_response = reqwest::get("https://www.googleapis.com/service_accounts/v1/metadata/jwk/signer@confidentialspace-sign.iam.gserviceaccount.com").await?;
+        let body = jwks_response.bytes().await?;
+        let jwks: JwkSet = serde_json::from_slice(&body)?;
         self.jwks = jwks;
+        Ok(())
     }
 }
 
 impl VerifyToken for GoogleConfidentialSpaceTokenVerifier {
-    async fn verify_token(
-        &self,
-        token: &[u8],
-        ekm: &[u8],
-    ) -> Result<(), ekm_client::TeeTlsConnectorError> {
+    async fn verify_token(&self, token: &[u8], ekm: &[u8]) -> Result<(), TeeTlsError> {
         // token is base64 encoded string
-        let token = std::str::from_utf8(token).unwrap();
+        let token = std::str::from_utf8(token)?;
 
-        let header = jsonwebtoken::decode_header(token).unwrap();
+        let header = jsonwebtoken::decode_header(token)?;
 
         let alg = header.alg;
         if alg != Algorithm::RS256 {
@@ -57,9 +62,7 @@ impl VerifyToken for GoogleConfidentialSpaceTokenVerifier {
         };
 
         let decoding_key = match &jwk.algorithm {
-            AlgorithmParameters::RSA(rsa) => {
-                DecodingKey::from_rsa_components(&rsa.n, &rsa.e).unwrap()
-            }
+            AlgorithmParameters::RSA(rsa) => DecodingKey::from_rsa_components(&rsa.n, &rsa.e)?,
             _ => unreachable!("algorithm should be a RSA in this example"),
         };
 
@@ -70,14 +73,13 @@ impl VerifyToken for GoogleConfidentialSpaceTokenVerifier {
             validation
         };
 
-        let decoded_token =
-            jsonwebtoken::decode::<JwtToken>(token, &decoding_key, &validation).unwrap();
+        let decoded_token = jsonwebtoken::decode::<JwtToken>(token, &decoding_key, &validation)?;
 
         match decoded_token.claims.eat_nonce {
-            ekm_gcs_types::EatNonce::Single(eat_nonce) => {
+            EatNonce::Single(eat_nonce) => {
                 assert_eq!(eat_nonce, hex::encode(ekm));
             }
-            ekm_gcs_types::EatNonce::Multiple(_eat_nonces) => todo!(),
+            EatNonce::Multiple(_eat_nonces) => todo!(),
         }
 
         // PKI flow... (broken)
@@ -89,11 +91,10 @@ impl VerifyToken for GoogleConfidentialSpaceTokenVerifier {
         // let cert_request = reqwest::get(
         //   "https://confidentialcomputing.googleapis.com/.well-known/confidential_space_root.crt",
         // )
-        // .await
-        // .unwrap();
-        // let cert = cert_request.bytes().await.unwrap();
-        // let decoding_key = &DecodingKey::from_rsa_pem(&cert).unwrap();
-        // let token_data = decode::<Claims>(tee_token, decoding_key, &validation).unwrap();
+        // .await?;
+        // let cert = cert_request.bytes().await?;
+        // let decoding_key = &DecodingKey::from_rsa_pem(&cert)?;
+        // let token_data = decode::<Claims>(tee_token, decoding_key, &validation)?;
         // dbg!(token_data);
 
         // TODO
