@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::io::BufReader;
 use tokio::io::{split, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt};
 
-use crate::errors::TeeTlsError;
+use crate::error::TeeTlsError;
 use crate::types::{DummyToken, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES};
 
 /// A struct representing a TLS acceptor with TEE attestation.

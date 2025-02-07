@@ -1,5 +1,5 @@
 use crate::client::VerifyToken;
-use crate::errors::TeeTlsError;
+use crate::error::TeeTlsError;
 use crate::types::{EatNonce, JwtToken};
 use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};

@@ -1,4 +1,4 @@
-use crate::{errors::TeeTlsError, server::GenerateToken};
+use crate::{error::TeeTlsError, server::GenerateToken};
 use http_body_util::BodyExt;
 use http_body_util::Full;
 use hyper::body::Bytes;

@@ -1,5 +1,5 @@
 use crate::{
-    errors::TeeTlsError,
+    error::TeeTlsError,
     types::{DummyToken, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES},
 };
 use rustls::crypto::CryptoProvider;
