@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::io::BufReader;
 use tokio::io::{split, AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt};
 
-use crate::error::TeeTlsError;
+use crate::error::CaraTlsError;
 use crate::types::{DummyToken, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES};
 
 /// A struct representing a TLS acceptor with TEE attestation.
@@ -71,7 +71,7 @@ impl<T: GenerateToken> TeeTlsAcceptor<T> {
     pub fn new_with_ephemeral_cert(
         token_generator: T,
         hostname: &str,
-    ) -> Result<Self, TeeTlsError> {
+    ) -> Result<Self, CaraTlsError> {
         let (cert, key) = generate_cert(hostname)?;
         Ok(TeeTlsAcceptor {
             cert_chain: vec![cert],
@@ -104,7 +104,7 @@ impl<T: GenerateToken> TeeTlsAcceptor<T> {
     pub async fn accept<IO>(
         &self,
         stream: IO,
-    ) -> Result<impl AsyncRead + AsyncWrite + Unpin, TeeTlsError>
+    ) -> Result<impl AsyncRead + AsyncWrite + Unpin, CaraTlsError>
     where
         IO: AsyncRead + AsyncWrite + Unpin,
     {
@@ -148,9 +148,25 @@ impl<T: GenerateToken> TeeTlsAcceptor<T> {
     }
 }
 
+/// Generates a self-signed certificate and private key.
+///
+/// This function creates a self-signed certificate for the provided subject alternative names
+/// and returns the certificate and private key in DER format.
+///
+/// # Arguments
+///
+/// * `subject_alt_names` - A string slice that holds the subject alternative names for the certificate.
+///
+/// # Returns
+///
+/// A `Result` containing a tuple with the certificate and private key in DER format, or a `CaraTlsError` if an error occurs.
+///
+/// # Errors
+///
+/// This function will return a `CaraTlsError` if there is an error during the certificate or key generation.
 fn generate_cert(
     subject_alt_names: &str,
-) -> Result<(CertificateDer<'static>, PrivateKeyDer<'static>), TeeTlsError> {
+) -> Result<(CertificateDer<'static>, PrivateKeyDer<'static>), CaraTlsError> {
     let rcgen::CertifiedKey { cert, key_pair } =
         generate_simple_self_signed(vec![subject_alt_names.to_string()])?;
 
@@ -159,7 +175,24 @@ fn generate_cert(
         PrivatePkcs8KeyDer::from(key_pair.serialize_der()).into(),
     ))
 }
-
+/// Exports key material from a TLS stream.
+///
+/// This function extracts key material from an established TLS stream using the provided label and context.
+/// The key material is used for cryptographic operations such as channel binding.
+///
+/// # Arguments
+///
+/// * `tls_stream` - A reference to a `tokio_rustls::server::TlsStream` representing the established TLS connection.
+/// * `label` - A byte slice representing the label used for key extraction.
+/// * `context` - An optional byte slice representing the context used for key extraction.
+///
+/// # Returns
+///
+/// A `Result` containing an array of extracted key material of length `L`, or a `rustls::Error` if an error occurs.
+///
+/// # Errors
+///
+/// This function will return a `rustls::Error::HandshakeNotComplete` if the TLS handshake is not complete.
 fn export_key_material<const L: usize, IO>(
     tls_stream: &tokio_rustls::server::TlsStream<IO>,
     label: &[u8],
@@ -171,7 +204,6 @@ where
     let conn = tls_stream.get_ref().1;
 
     if conn.is_handshaking() {
-        // TODO maybe return OtherError with custom message?
         return Err(rustls::Error::HandshakeNotComplete);
     }
 
@@ -206,7 +238,7 @@ pub trait GenerateToken {
     fn generate_token(
         &self,
         ekm: &[u8],
-    ) -> impl std::future::Future<Output = Result<Vec<u8>, TeeTlsError>> + Send;
+    ) -> impl std::future::Future<Output = Result<Vec<u8>, CaraTlsError>> + Send;
 }
 
 /// A dummy token generator used for testing purposes.
@@ -218,7 +250,7 @@ pub struct DummyTokenGenerator {
 }
 
 impl GenerateToken for DummyTokenGenerator {
-    async fn generate_token(&self, _ekm: &[u8]) -> Result<Vec<u8>, TeeTlsError> {
+    async fn generate_token(&self, _ekm: &[u8]) -> Result<Vec<u8>, CaraTlsError> {
         let token = DummyToken {
             body: self.token.clone(),
         };

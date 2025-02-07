@@ -1,5 +1,5 @@
 use crate::client::VerifyToken;
-use crate::error::TeeTlsError;
+use crate::error::CaraTlsError;
 use crate::types::{EatNonce, JwtToken};
 use jsonwebtoken::jwk::{AlgorithmParameters, JwkSet};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
@@ -26,7 +26,7 @@ impl GoogleConfidentialSpaceTokenVerifier {
         v
     }
     /// Reloads the JWK set for the token.
-    pub async fn reload_jwks(&mut self) -> Result<(), TeeTlsError> {
+    pub async fn reload_jwks(&mut self) -> Result<(), CaraTlsError> {
         // OIDC flow ...
         // https://confidentialcomputing.googleapis.com/.well-known/openid-configuration
         // https://www.googleapis.com/service_accounts/v1/metadata/jwk/signer@confidentialspace-sign.iam.gserviceaccount.com
@@ -39,7 +39,7 @@ impl GoogleConfidentialSpaceTokenVerifier {
 }
 
 impl VerifyToken for GoogleConfidentialSpaceTokenVerifier {
-    async fn verify_token(&self, token: &[u8], ekm: &[u8]) -> Result<(), TeeTlsError> {
+    async fn verify_token(&self, token: &[u8], ekm: &[u8]) -> Result<(), CaraTlsError> {
         // token is base64 encoded string
         let token = std::str::from_utf8(token)?;
 

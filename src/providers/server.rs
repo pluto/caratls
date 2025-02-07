@@ -1,4 +1,4 @@
-use crate::{error::TeeTlsError, server::GenerateToken};
+use crate::{error::CaraTlsError, server::GenerateToken};
 use http_body_util::BodyExt;
 use http_body_util::Full;
 use hyper::body::Bytes;
@@ -32,7 +32,7 @@ impl GoogleConfidentialSpaceTokenGenerator {
 }
 
 impl GenerateToken for GoogleConfidentialSpaceTokenGenerator {
-    async fn generate_token(&self, ekm: &[u8]) -> Result<Vec<u8>, TeeTlsError> {
+    async fn generate_token(&self, ekm: &[u8]) -> Result<Vec<u8>, CaraTlsError> {
         let stream =
             tokio::net::UnixStream::connect("/run/container_launcher/teeserver.sock").await?;
         let stream = TokioIo::new(stream);
@@ -68,9 +68,16 @@ impl GenerateToken for GoogleConfidentialSpaceTokenGenerator {
     }
 }
 
+/// A struct representing a custom token request.
+///
+/// The `CustomTokenRequest` struct is used to create a request for a custom token
+/// with the specified audience, token type, and nonces.
 #[derive(Serialize, Deserialize)]
 struct CustomTokenRequest {
+    /// The expected audience for the token.
     audience: String,
+    /// The type of the token.
     token_type: String,
+    /// A list of nonces associated with the token request.
     nonces: Vec<String>,
 }

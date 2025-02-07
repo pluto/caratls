@@ -1,5 +1,5 @@
 use crate::{
-    error::TeeTlsError,
+    error::CaraTlsError,
     types::{DummyToken, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES},
 };
 use rustls::crypto::CryptoProvider;
@@ -69,7 +69,7 @@ impl<T: VerifyToken> TeeTlsConnector<T> {
     pub async fn connect<IO>(
         &self,
         stream: IO,
-    ) -> Result<tokio_rustls::client::TlsStream<IO>, TeeTlsError>
+    ) -> Result<tokio_rustls::client::TlsStream<IO>, CaraTlsError>
     where
         IO: AsyncRead + AsyncWrite + Unpin,
     {
@@ -134,7 +134,7 @@ pub trait VerifyToken {
         &self,
         token: &[u8],
         ekm: &[u8],
-    ) -> impl std::future::Future<Output = Result<(), TeeTlsError>>;
+    ) -> impl std::future::Future<Output = Result<(), CaraTlsError>>;
 }
 
 /// A dummy token verifier used for testing purposes.
@@ -147,7 +147,7 @@ pub struct DummyTokenVerifier {
 }
 
 impl VerifyToken for DummyTokenVerifier {
-    async fn verify_token(&self, token: &[u8], _ekm: &[u8]) -> Result<(), TeeTlsError> {
+    async fn verify_token(&self, token: &[u8], _ekm: &[u8]) -> Result<(), CaraTlsError> {
         let token: DummyToken = serde_cbor::from_slice(token)?;
         assert!(token.body == self.expect_token);
         Ok(())
@@ -238,6 +238,24 @@ impl rustls::client::danger::ServerCertVerifier for SkipServerVerification {
     // }
 }
 
+/// Exports keying material from a TLS stream.
+///
+/// This function exports keying material from a given TLS stream using the provided label and context.
+/// It ensures that the TLS handshake is complete before attempting to export the keying material.
+///
+/// # Arguments
+///
+/// * `tls_stream` - A reference to the TLS stream from which to export keying material.
+/// * `label` - A byte slice representing the label to use for the keying material export.
+/// * `context` - An optional byte slice representing the context to use for the keying material export.
+///
+/// # Returns
+///
+/// A result containing an array of bytes representing the exported keying material, or a `rustls::Error` if the export fails.
+///
+/// # Errors
+///
+/// This function returns a `rustls::Error::HandshakeNotComplete` if the TLS handshake is not complete.
 fn export_key_material<const L: usize, IO>(
     tls_stream: &tokio_rustls::client::TlsStream<IO>,
     label: &[u8],

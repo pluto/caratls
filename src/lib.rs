@@ -1,3 +1,4 @@
+#![warn(missing_docs, clippy::missing_docs_in_private_items)]
 //! Caratls (Certificate Authority trusted Remote Attestation TLS) lets a browser connect
 //! directly to a TEE using a Root CA-signed certificate (e.g., from Let's Encrypt),
 //! then encapsulates a second TLS session inside the outer session.
