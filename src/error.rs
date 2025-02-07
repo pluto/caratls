@@ -2,7 +2,7 @@ use thiserror::Error;
 
 /// Error types for the library.
 #[derive(Error, Debug)]
-pub enum TeeTlsError {
+pub enum CaraTlsError {
     /// Error from the Rustls library.
     #[error(transparent)]
     RustlsError(#[from] rustls::Error),
@@ -29,7 +29,7 @@ pub enum TeeTlsError {
 
     /// Request error.
     #[error(transparent)]
-    RequestError(#[from] reqwest::Error),
+    ReqwestError(#[from] reqwest::Error),
 
     /// Serde JSON error.
     #[error(transparent)]
