@@ -2,7 +2,7 @@ use thiserror::Error;
 
 /// Error types for the library.
 #[derive(Error, Debug)]
-pub enum TeeTlsError {
+pub enum CaraTlsError {
     /// Error from the Rustls library.
     #[error(transparent)]
     RustlsError(#[from] rustls::Error),
