@@ -175,7 +175,7 @@ impl SkipServerVerification {
     pub fn new(verify_hostname: &str) -> std::sync::Arc<Self> {
         std::sync::Arc::new(Self {
             verify_hostname: verify_hostname.to_string(),
-            supported_algs: Arc::new(CryptoProvider::get_default().unwrap()) // this unwrap is safe with default provider
+            supported_algs: Arc::new(CryptoProvider::get_default().unwrap()) // this is safe with default provider
                 .clone()
                 .signature_verification_algorithms,
         })

@@ -2,6 +2,12 @@
 name = "caratls"
 version = "0.1.0"
 edition = "2021"
+description = "Certificate Authority trusted Remote Attestation TLS"
+license = "Apache-2.0"
+repository = "https://github.com/pluto/caratls"
+authors = ["Pluto <hello@pluto.com>"]
+keywords = ["Trusted Execution Environment", "TEE", "TLS", "Certificate Authority", "Google Confidential Space", "GCS"]
+categories = ["cryptography", "security", "Network-Programming"]
 
 [dependencies]
 tokio = { version = "1.42", default-features = false, features = ["io-util"] }
@@ -11,8 +17,6 @@ thiserror = "2"
 rcgen = "0.13"
 rustls = { version = "0.23" }
 tokio-rustls = { version = "0.26" }
-# ekm_gcs_types = { package = "caratls_ekm_google_confidential_space_types", path = "../types" }
-# ekm_server = { package = "caratls_ekm_server", path = "../../../server" }
 hyper = { version = "1.5", features = ["client", "http1"] }
 http-body-util = { version = "0.1" }
 hyper-util = { version = "0.1", features = ["tokio"] }
