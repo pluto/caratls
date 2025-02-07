@@ -1,9 +1,10 @@
-use ekm_types::{DummyToken, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES};
 use rustls::crypto::CryptoProvider;
 use rustls_pki_types::CertificateDer;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+use crate::types::{DummyToken, EKM_CONTEXT, EKM_LABEL, MAGIC_BYTES};
 
 #[derive(Error, Debug)]
 pub enum TeeTlsConnectorError {
