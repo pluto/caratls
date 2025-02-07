@@ -36,9 +36,9 @@ impl VerifyToken for GoogleConfidentialSpaceTokenVerifier {
         ekm: &[u8],
     ) -> Result<(), ekm_client::TeeTlsConnectorError> {
         // token is base64 encoded string
-        let token = std::str::from_utf8(&token).unwrap();
+        let token = std::str::from_utf8(token).unwrap();
 
-        let header = jsonwebtoken::decode_header(&token).unwrap();
+        let header = jsonwebtoken::decode_header(token).unwrap();
 
         let alg = header.alg;
         if alg != Algorithm::RS256 {
@@ -75,7 +75,7 @@ impl VerifyToken for GoogleConfidentialSpaceTokenVerifier {
 
         match decoded_token.claims.eat_nonce {
             ekm_gcs_types::EatNonce::Single(eat_nonce) => {
-                assert_eq!(eat_nonce, hex::encode(&ekm));
+                assert_eq!(eat_nonce, hex::encode(ekm));
             }
             ekm_gcs_types::EatNonce::Multiple(_eat_nonces) => todo!(),
         }

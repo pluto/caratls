@@ -16,9 +16,9 @@ serde_cbor = "0.11"
 [dev-dependencies]
 ekm_client = { package = "caratls_ekm_client", path = "../client" }
 tokio = { version = "1.42", features = [
-	"net",
-	"io-util",
-	"rt",
-	"macros",
-	"time",
+  "net",
+  "io-util",
+  "rt",
+  "macros",
+  "time",
 ] }

@@ -26,7 +26,7 @@ pub struct JwtToken {
 #[serde(untagged)]
 pub enum EatNonce {
     Single(String),
-    Multiple(Vec<String>)
+    Multiple(Vec<String>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

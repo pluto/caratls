@@ -21,7 +21,7 @@ impl<T: VerifyToken> TeeTlsConnector<T> {
     pub fn new(token_verifier: T, verify_hostname: &str) -> Self {
         TeeTlsConnector {
             verify_hostname: verify_hostname.to_string(),
-            token_verifier: token_verifier,
+            token_verifier,
         }
     }
 
@@ -80,14 +80,21 @@ impl<T: VerifyToken> TeeTlsConnector<T> {
         inner_tls_stream.read_exact(&mut token).await.unwrap();
 
         // Verify token
-        self.token_verifier.verify_token(&token, &ekm).await.unwrap();
+        self.token_verifier
+            .verify_token(&token, &ekm)
+            .await
+            .unwrap();
 
         Ok(inner_tls_stream)
     }
 }
 
 pub trait VerifyToken {
-    fn verify_token(&self, token: &[u8], ekm: &[u8]) -> impl std::future::Future<Output = Result<(), TeeTlsConnectorError>>;
+    fn verify_token(
+        &self,
+        token: &[u8],
+        ekm: &[u8],
+    ) -> impl std::future::Future<Output = Result<(), TeeTlsConnectorError>>;
 }
 
 pub struct DummyTokenVerifier {

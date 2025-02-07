@@ -29,9 +29,9 @@ impl<T: GenerateToken> TeeTlsAcceptor<T> {
         key_der: PrivateKeyDer<'static>,
     ) -> Self {
         TeeTlsAcceptor {
-            cert_chain: cert_chain,
-            key_der: key_der,
-            token_generator: token_generator,
+            cert_chain,
+            key_der,
+            token_generator,
         }
     }
 
@@ -40,7 +40,7 @@ impl<T: GenerateToken> TeeTlsAcceptor<T> {
         TeeTlsAcceptor {
             cert_chain: vec![cert],
             key_der: key,
-            token_generator: token_generator,
+            token_generator,
         }
     }
 
@@ -132,7 +132,10 @@ where
 }
 
 pub trait GenerateToken {
-    fn generate_token(&self, ekm: &[u8]) -> impl std::future::Future<Output = Result<Vec<u8>, TeeTlsAcceptorError>> + Send;
+    fn generate_token(
+        &self,
+        ekm: &[u8],
+    ) -> impl std::future::Future<Output = Result<Vec<u8>, TeeTlsAcceptorError>> + Send;
 }
 
 pub struct DummyTokenGenerator {

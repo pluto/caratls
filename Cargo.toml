@@ -1,10 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
-	"ekm/client",
-	"ekm/server",
-	"ekm/types",
-	"ekm/providers/google_confidential_space/client",
-	"ekm/providers/google_confidential_space/server",
-	"ekm/providers/google_confidential_space/types",
+  "ekm/client",
+  "ekm/server",
+  "ekm/types",
+  "ekm/providers/google_confidential_space/client",
+  "ekm/providers/google_confidential_space/server",
+  "ekm/providers/google_confidential_space/types",
 ]

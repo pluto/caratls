@@ -47,7 +47,6 @@ Outer TLS session trusted by Root CA (ie Let's Encrypt)
 Both approaches ensure a strong channel binding between the TEE and the client.
 Currently this crate only implements an EKM-based approach for Google Confidential Space.
 
-
 ## Usage
 
 ```rust

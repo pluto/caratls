@@ -20,7 +20,7 @@ tokio-rustls = { version = "0.26" }
 [target.'cfg(any(target_arch = "wasm32", target_os = "ios", target_os = "ios-sim"))'.dependencies]
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 tokio-rustls = { version = "0.26", default-features = false, features = [
-	"ring",
+  "ring",
 ] }
 
 # WASM
