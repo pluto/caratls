@@ -1,7 +1,5 @@
 # caratls
 
-## WORK IN PROGRESS
-
 **tldr**: caratls (Certificate Authority trusted Remote Attestation TLS) lets a browser connect directly to a TEE using a Root CA-signed certificate (e.g., from Let's Encrypt), then encapsulates a second TLS session inside the outer session. This inner TLS session is bootstrapped with TEE-generated self-signed certificates and supports channel binding, ensuring strong trust with the TEE even if the outer certificate is compromised.
 
 ```
@@ -10,7 +8,6 @@ Outer TLS session trusted by Root CA (ie Let's Encrypt)
 ...verifies TEE attestation token inline
 ...use TlsStream<TlsStream<TcpStream>> for regular client/server comms
 ```
-
 
 ## Motivation
 
@@ -62,11 +59,3 @@ let tee_tls_stream = tee_tls_connector.connect(tls_stream).await?;
 ```
 
 The `tls_stream` in both cases is already an outer TLS connection (e.g., from Let's Encrypt) which then encapsulates the secure TEE-bootstrapped inner TLS connection.
-
-
-## Development
-
-caratls is organized into multiple crates:
-
-* `server & client`: Split for better dependency control (e.g., WASM/iOS target support on the client side).
-* `ekm` and `key`: Different crates implement either EKM-based or Key-Attestation based channel binding.
