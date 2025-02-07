@@ -29,7 +29,7 @@ pub enum TeeTlsError {
 
     /// Request error.
     #[error(transparent)]
-    RequestError(#[from] reqwest::Error),
+    ReqwestError(#[from] reqwest::Error),
 
     /// Serde JSON error.
     #[error(transparent)]
